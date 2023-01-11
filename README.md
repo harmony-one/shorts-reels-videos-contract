@@ -1,1 +1,1 @@
-# shorts-reels-videos-contract
+# Harmony Shorts Reels Videos Smart Contract
