@@ -37,8 +37,8 @@ contract VanityURL is
     /// @dev Video vanity URL is valid only if nameOwnerUpdateAt <= videoVanityURLPaidAt
     mapping(bytes32 => mapping(string => mapping(address => uint256))) public videoVanityURLPaidAt;
 
-    /// @dev Price for the video vanity URLs
-    uint256 public videoVanityURLPrice;
+    /// @dev Maintainer address
+    address public maintainer;
 
     event NewURLSet(
         address by,
@@ -65,6 +65,7 @@ contract VanityURL is
         string indexed aliasNAme
     );
     event RevenueAccountChanged(address indexed from, address indexed to);
+    event MaintainerChanged(address indexed from, address indexed to);
 
     modifier onlyD1DCV2NameOwner(string memory _name) {
         bytes32 tokenId = keccak256(bytes(_name));
@@ -74,11 +75,16 @@ contract VanityURL is
         _;
     }
 
+    modifier onlyMaintainer() {
+        require(msg.sender == maintainer, "VanityURL: only maintainer");
+        _;
+    }
+
     function initialize(
         address _addressRegistry,
         uint256 _urlUpdatePrice,
-        uint256 _videoVanityURLPrice,
-        address _revenueAccount
+        address _revenueAccount,
+        address _maintainer
     ) external initializer {
         __Pausable_init();
         __Ownable_init();
@@ -86,7 +92,6 @@ contract VanityURL is
 
         addressRegistry = IAddressRegistry(_addressRegistry);
         urlUpdatePrice = _urlUpdatePrice;
-        videoVanityURLPrice = _videoVanityURLPrice;
         revenueAccount = _revenueAccount;
     }
 
@@ -94,6 +99,12 @@ contract VanityURL is
         emit RevenueAccountChanged(revenueAccount, _revenueAccount);
 
         revenueAccount = _revenueAccount;
+    }
+
+    function setMaintainer(address _maintainer) external onlyOwner {
+        emit MaintainerChanged(maintainer, _maintainer);
+
+        maintainer = _maintainer;
     }
 
     function setNameOwnerUpdateAt(bytes32 _d1dcV2TokenId) external {
@@ -105,10 +116,6 @@ contract VanityURL is
 
     function updateURLUpdatePrice(uint256 _urlUpdatePrice) external onlyOwner {
         urlUpdatePrice = _urlUpdatePrice;
-    }
-
-    function updateVideoVanityURLPrice(uint256 _videoVanityURLPrice) external onlyOwner {
-        videoVanityURLPrice = _videoVanityURLPrice;
     }
 
     function setNewURL(
@@ -204,7 +211,7 @@ contract VanityURL is
                 : false;
     }
 
-    function payForVideoVanityURLAccess(string memory _name, string memory _aliasName) external payable {
+    function payForVideoVanityURLAccess(string memory _name, string memory _aliasName) external onlyMaintainer {
         bytes32 tokenId = keccak256(bytes(_name));
         require(
             !checkVideoVanityURLAccess(_name, _aliasName, msg.sender),
