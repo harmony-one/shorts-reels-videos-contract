@@ -5,6 +5,7 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ECDSAUpgradeable.sol";
 
 import "./interfaces/IAddressRegistry.sol";
 import "./interfaces/ID1DCV2.sol";
@@ -62,7 +63,8 @@ contract VanityURL is
     event VideoVanityURLPaid(
         address indexed by,
         string indexed name,
-        string indexed aliasNAme
+        string indexed aliasNAme,
+        uint256 paidAt
     );
     event RevenueAccountChanged(address indexed from, address indexed to);
     event MaintainerChanged(address indexed from, address indexed to);
@@ -211,27 +213,23 @@ contract VanityURL is
                 : false;
     }
 
-    function payForVideoVanityURLAccess(string memory _name, string memory _aliasName) external onlyMaintainer {
+    function payForVideoVanityURLAccess(string memory _name, string memory _aliasName, uint256 _paidAt, bytes memory _signature) external onlyMaintainer {
         bytes32 tokenId = keccak256(bytes(_name));
         require(
             !checkVideoVanityURLAccess(_name, _aliasName, msg.sender),
             "VanityURL: already paid"
         );
 
-        uint256 price = videoVanityURLPrice;
-        require(price <= msg.value, "VanityURL: insufficient payment");
+        // check the signature
+        bytes32 data = keccak256(abi.encodePacked(msg.sender, _name, _aliasName, _paidAt));
+        require(data.toEthSignedMessageHash().recover(_signature) == maintainer, "VanityURL: invalid signature");
+
+        require(_paidAt <= block.timestamp, "VanityURL: invalid time");
 
         // pay for the video vanity URL access
-        videoVanityURLPaidAt[tokenId][_aliasName][msg.sender] = block.timestamp;
+        videoVanityURLPaidAt[tokenId][_aliasName][msg.sender] = _paidAt;
 
-        // returns the exceeded payment
-        uint256 excess = msg.value - price;
-        if (excess > 0) {
-            (bool success, ) = msg.sender.call{value: excess}("");
-            require(success, "cannot refund excess");
-        }
-
-        emit VideoVanityURLPaid(msg.sender, _name, _aliasName);
+        emit VideoVanityURLPaid(msg.sender, _name, _aliasName, _paidAt);
     }
 
     function checkVideoVanityURLAccess(string memory _name, string memory _aliasName, address _user) public view returns (bool) {
