@@ -224,6 +224,7 @@ contract VanityURL is
         bytes32 data = keccak256(abi.encodePacked(msg.sender, _name, _aliasName, _paidAt));
         require(data.toEthSignedMessageHash().recover(_signature) == maintainer, "VanityURL: invalid signature");
 
+        // check the payment timestamp
         require(_paidAt <= block.timestamp, "VanityURL: invalid time");
 
         // pay for the video vanity URL access
@@ -232,7 +233,7 @@ contract VanityURL is
         emit VideoVanityURLPaid(msg.sender, _name, _aliasName, _paidAt);
     }
 
-    function checkVideoVanityURLAccess(string memory _name, string memory _aliasName, address _user) public view returns (bool) {
+    function checkVideoVanityURLAccess(address _user, string memory _name, string memory _aliasName) public view returns (bool) {
         bytes32 tokenId = keccak256(bytes(_name));
         return
             nameOwnerUpdateAt[tokenId] <
