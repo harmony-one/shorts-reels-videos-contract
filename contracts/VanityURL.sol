@@ -5,7 +5,6 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ECDSAUpgradeable.sol";
 
 import "./interfaces/IAddressRegistry.sol";
 import "./interfaces/ID1DCV2.sol";
@@ -95,6 +94,7 @@ contract VanityURL is
         addressRegistry = IAddressRegistry(_addressRegistry);
         urlUpdatePrice = _urlUpdatePrice;
         revenueAccount = _revenueAccount;
+        maintainer = _maintainer;
     }
 
     function setRevenueAccount(address _revenueAccount) public onlyOwner {
@@ -213,22 +213,18 @@ contract VanityURL is
                 : false;
     }
 
-    function payForVideoVanityURLAccess(string memory _name, string memory _aliasName, uint256 _paidAt, bytes memory _signature) external onlyMaintainer {
+    function payForVideoVanityURLAccess(address _user, string memory _name, string memory _aliasName, uint256 _paidAt) external onlyMaintainer {
         bytes32 tokenId = keccak256(bytes(_name));
         require(
-            !checkVideoVanityURLAccess(_name, _aliasName, msg.sender),
+            !checkVideoVanityURLAccess(_user, _name, _aliasName),
             "VanityURL: already paid"
         );
-
-        // check the signature
-        bytes32 data = keccak256(abi.encodePacked(msg.sender, _name, _aliasName, _paidAt));
-        require(data.toEthSignedMessageHash().recover(_signature) == maintainer, "VanityURL: invalid signature");
 
         // check the payment timestamp
         require(_paidAt <= block.timestamp, "VanityURL: invalid time");
 
-        // pay for the video vanity URL access
-        videoVanityURLPaidAt[tokenId][_aliasName][msg.sender] = _paidAt;
+        // store the payment for the video vanity URL access
+        videoVanityURLPaidAt[tokenId][_aliasName][_user] = _paidAt;
 
         emit VideoVanityURLPaid(msg.sender, _name, _aliasName, _paidAt);
     }
