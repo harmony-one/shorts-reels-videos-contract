@@ -25,6 +25,7 @@ describe('D1DCV2', () => {
   let bob: SignerWithAddress;
   let john: SignerWithAddress;
   let revenueAccount: SignerWithAddress;
+  let maintainer: SignerWithAddress;
   
   let addressRegistry: AddressRegistry;
   let d1dcV2: D1DCV2;
@@ -38,7 +39,7 @@ describe('D1DCV2', () => {
 
   beforeEach(async () => {
     accounts = await ethers.getSigners();
-    [deployer, alice, bob, john, revenueAccount] = accounts;
+    [deployer, alice, bob, john, revenueAccount, maintainer] = accounts;
 
     // Initialize AddressRegistry Contract
     const AddressRegistry = await ethers.getContractFactory("AddressRegistry");
@@ -50,7 +51,7 @@ describe('D1DCV2', () => {
 
     // Initialize VanityURL contract
     const VanityURL = await ethers.getContractFactory("VanityURL");
-    vanityURL = (await upgrades.deployProxy(VanityURL, [addressRegistry.address, urlUpdatePrice, revenueAccount.address])) as VanityURL;
+    vanityURL = (await upgrades.deployProxy(VanityURL, [addressRegistry.address, urlUpdatePrice, revenueAccount.address, maintainer.address])) as VanityURL;
 
     // Register the contract addresses to AddressRegistry
     await addressRegistry.setD1DCV2(d1dcV2.address);
@@ -60,9 +61,6 @@ describe('D1DCV2', () => {
     await d1dcV2.setEmojiPrice(0, emojiPrice0);
     await d1dcV2.setEmojiPrice(1, emojiPrice1);
     await d1dcV2.setEmojiPrice(2, emojiPrice2);
-
-    // Set the url update price
-    await vanityURL.updateURLUpdatePrice(urlUpdatePrice);
   });
 
   describe("rent", () => {

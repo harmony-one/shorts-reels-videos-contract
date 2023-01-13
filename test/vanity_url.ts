@@ -4,6 +4,7 @@ import { ethers, upgrades } from 'hardhat'
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 
 import type { AddressRegistry, D1DCV2, VanityURL } from "../typechain-types"
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 const name = '.1.country'
 const symbol = 'D1DCV2'
@@ -30,6 +31,7 @@ describe('VanityURL', () => {
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
   let revenueAccount: SignerWithAddress;
+  let maintainer: SignerWithAddress;
 
   let addressRegistry: AddressRegistry;
   let d1dcV2: D1DCV2;
@@ -43,7 +45,7 @@ describe('VanityURL', () => {
 
   beforeEach(async () => {
     accounts = await ethers.getSigners();
-    [deployer, alice, bob, revenueAccount] = accounts;
+    [deployer, alice, bob, revenueAccount, maintainer] = accounts;
 
     // Initialize AddressRegistry Contract
     const AddressRegistry = await ethers.getContractFactory("AddressRegistry");
@@ -55,7 +57,7 @@ describe('VanityURL', () => {
 
     // Initialize VanityURL contract
     const VanityURL = await ethers.getContractFactory("VanityURL");
-    vanityURL = (await upgrades.deployProxy(VanityURL, [addressRegistry.address, urlUpdatePrice, revenueAccount.address])) as VanityURL;
+    vanityURL = (await upgrades.deployProxy(VanityURL, [addressRegistry.address, urlUpdatePrice, revenueAccount.address, maintainer.address])) as VanityURL;
 
     // Register the contract addresses to AddressRegistry
     await addressRegistry.setD1DCV2(d1dcV2.address);
@@ -65,9 +67,6 @@ describe('VanityURL', () => {
     await d1dcV2.setEmojiPrice(0, emojiPrice0);
     await d1dcV2.setEmojiPrice(1, emojiPrice1);
     await d1dcV2.setEmojiPrice(2, emojiPrice2);
-
-    // Set the url update price
-    await vanityURL.updateURLUpdatePrice(urlUpdatePrice);
   });
 
   describe("setRevenueAccount", () => {
@@ -216,6 +215,44 @@ describe('VanityURL', () => {
 
       const newURL = "newURL";
       await expect(vanityURL.connect(bob).updateURL(dotName, aliasName, newURL)).to.be.revertedWith("VanityURL: invalid URL");
+    });
+  });
+
+  describe("payForVideoVanityURLAccess", () => {
+    it("Should be able to store the payment status", async () => {
+      const aliasName = "aliasName";
+      const paidAt = await getTimestamp();
+
+      const paymentStatusBefore = await vanityURL.checkVideoVanityURLAccess(alice.address, dotName, aliasName);
+      expect(paymentStatusBefore).to.be.false;
+
+      // store the payment status
+      await vanityURL.connect(maintainer).payForVideoVanityURLAccess(alice.address, dotName, aliasName, paidAt);
+
+      const paymentStatusAfter = await vanityURL.checkVideoVanityURLAccess(alice.address, dotName, aliasName);
+      expect(paymentStatusAfter).to.be.true;
+    });
+
+    it("Should revert if the payment already stored", async () => {
+      const aliasName = "aliasName";
+      const paidAt = await getTimestamp();
+      await vanityURL.connect(maintainer).payForVideoVanityURLAccess(alice.address, dotName, aliasName, paidAt);
+
+      await expect(vanityURL.connect(maintainer).payForVideoVanityURLAccess(alice.address, dotName, aliasName, paidAt + 1)).to.be.revertedWith("VanityURL: already paid");
+    })
+
+    it("Should revert if the caller is not the maintainer", async () => {
+      const aliasName = "aliasName";
+      const paidAt = await getTimestamp();
+
+      await expect(vanityURL.connect(alice).payForVideoVanityURLAccess(alice.address, dotName, aliasName, paidAt)).to.be.revertedWith("VanityURL: only maintainer");
+    });
+
+    it("Should revert if the payment timestamp is invalid", async () => {
+      const aliasName = "aliasName";
+      const paidAt = await getTimestamp();
+
+      await expect(vanityURL.connect(maintainer).payForVideoVanityURLAccess(alice.address, dotName, aliasName, paidAt + 1)).to.be.revertedWith("VanityURL: invalid time");
     });
   });
 
