@@ -85,23 +85,4 @@ contract ShortsReelsVideos is
                 ? true
                 : false;
     }
-
-    function withdraw() external {
-        require(
-            msg.sender == owner(),
-            "D1DC: must be owner or revenue account"
-        );
-        (bool success, ) = payable(msg.sender).call{value: address(this).balance}(
-            ""
-        );
-        require(success, "D1DC: failed to withdraw");
-    }
-
-    function pause() external onlyOwner {
-        _pause();
-    }
-
-    function unpause() external onlyOwner {
-        _unpause();
-    }
 }
