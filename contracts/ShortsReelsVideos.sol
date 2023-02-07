@@ -4,57 +4,48 @@ pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "@openzeppelin/openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
-contract ContentManager is
+import "./interfaces/IVanityURL.sol";
+
+contract ShortsReelsVideos is
     OwnableUpgradeable,
-    PausableUpgradeable
-    // ReentrancyGuardUpgradeable
+    PausableUpgradeable,
+    ReentrancyGuardUpgradeable
 {
     /// @dev VanityURL contract address
     IVanityURL public vanityURLAddress;
 
-    struct ContentRecord {
-        address owner;
-        uint256 price;
-    }
-
-    /// @dev D1DCV2 Token Id -> Alias Name -> User -> Timestamp the user paid for the video url
-    /// @dev Video vanity URL is valid only if nameOwnerUpdateAt <= videoVanityURLPaidAt
-    mapping(bytes32 => mapping(string => mapping(address => uint256))) public contentPaidAt;
-
-    mapping(bytes32 => mapping(string => ContentRecord)) public contentRecords;
+    /// @dev D1DCV2 Token Id -> Alias Name -> User -> Timestamp the user paid for the vanity url
+    /// @dev Vanity URL is valid only if nameOwnerUpdateAt <= vanityURLPaidAt
+    mapping(bytes32 => mapping(string => mapping(address => uint256))) public vanityURLPaidAt;
 
     /// @dev Maintainer address
     address public maintainer;
 
-    event ContentCreated(
-        address indexed owner,
+    event UserPaidForVanityURL(
+        address indexed user,
+        address owner,
         string indexed name,
-        string indexed aliasNAme,
-        uint256 price
-    );
-
-    event UserPaidForContent(
-        address indexed owner,
-        string indexed name,
-        string indexed aliasNAme,
-        uint256 price
+        string indexed aliasName,
+        uint256 price,
+        uint256 paidAt
     );
 
     event DonationSent (
-        string indexed name,
-        string indexed aliasNAme,
         address indexed sender,
-        address recipient,
-        uint256 amount
+        address owner,
+        string indexed name,
+        string indexed aliasName,
+        uint256 amount,
+        uint256 paidAt
     );
     
     event VanityURLAddressChanged(address indexed from, address indexed to);
     event MaintainerChanged(address indexed from, address indexed to);
 
     modifier onlyMaintainer() {
-        require(msg.sender == maintainer, "VanityURL: only maintainer");
+        require(msg.sender == maintainer, "only maintainer");
         _;
     }
 
@@ -82,88 +73,64 @@ contract ContentManager is
         maintainer = _maintainer;
     }
 
-    function payForContentAccess(address _user, string memory _name, string memory _aliasName, uint256 _paidAt) public payable {
-        bytes32 tokenId = keccak256(bytes(_name));
-        require(
-            !checkContentAccess(_user, _name, _aliasName),
-            "VanityURL: already paid"
-        );
+    function payForVanityURLAccess(string calldata _name, string calldata _aliasName) external payable {
+        _payForVanityURLAccess(msg.sender, _name, _aliasName, msg.value, block.timestamp);
+    }
 
+    function payForVanityURLAccessFor(address _user, string calldata _name, string calldata _aliasName, uint256 _paidAt) external payable onlyMaintainer {
         // check the payment timestamp
         require(_paidAt <= block.timestamp, "VanityURL: invalid time");
 
-        require(contentRecords[tokenId][_aliasName].owner != address(0x0), "Content not created");
-
-        require(contentRecords[tokenId][_aliasName].price == msg.value, "Wrong payment amount");
-
-        // store the payment for the video vanity URL access
-        contentPaidAt[tokenId][_aliasName][_user] = _paidAt;
-
-        payable(contentRecords[tokenId][_aliasName].owner).transfer(msg.value);
-
-        emit UserPaidForContent(msg.sender, _name, _aliasName, _paidAt);
+        _payForVanityURLAccess(_user, _name, _aliasName, msg.value, _paidAt);
     }
 
-    function checkContentAccess(address _user, string memory _name, string memory _aliasName) public view returns (bool) {
+    function _payForVanityURLAccess(address _user, string calldata _name, string calldata _aliasName, uint256 _paymentAmount, uint256 _paidAt) internal {
+        bytes32 tokenId = keccak256(bytes(_name));
+        require(
+            !checkVanityURLAccess(_user, _name, _aliasName),
+            "already paid"
+        );
+        require(vanityURLAddress.checkURLValidity(_name, _aliasName), "invalid URL");
+
+        // check the payment
+        require(vanityURLAddress.vanityURLPrices(tokenId, _aliasName) == _paymentAmount, "wrong payment amount");
+
+        // store the payment timestamp for the vanity URL access
+        vanityURLPaidAt[tokenId][_aliasName][_user] = _paidAt;
+
+        address owner = vanityURLAddress.getNameOwner(_name);
+        uint256 priceForOwner = _paymentAmount * 90 / 100;
+        (bool success, ) = owner.call{value: priceForOwner}("");
+        require(success, "error sending ether");
+
+        emit UserPaidForVanityURL(msg.sender, owner, _name, _aliasName, priceForOwner, _paidAt);
+    }
+
+    function checkVanityURLAccess(address _user, string memory _name, string memory _aliasName) public view returns (bool) {
         bytes32 tokenId = keccak256(bytes(_name));
 
         return vanityURLAddress.nameOwnerUpdateAt(tokenId) <
-                contentPaidAt[tokenId][_aliasName][_user]
+                vanityURLPaidAt[tokenId][_aliasName][_user]
                 ? true
                 : false;
     }
 
-    function getContentPrice(string memory _name, string memory _aliasName) public view returns (uint256) {
-        bytes32 tokenId = keccak256(bytes(_name));
-
-        return contentRecords[tokenId][_aliasName].price;
+    function sendDonation(string memory _name, string memory _aliasName) external payable {
+        return _sendDonationFrom(msg.sender, _name, _aliasName, msg.value);
     }
 
-    function createContent(string memory _name, string memory _aliasName, uint256 price) public {
-        string memory ownerName = vanityURLAddress.nameOf(msg.sender);
-        require(compareStrings(ownerName, _name), "Sender not owner of this name");
-
-        return _createContent(msg.sender, _name, _aliasName, price);
+    function forceSendDonation(address from, string memory _name, string memory _aliasName) external payable onlyMaintainer {
+        return _sendDonationFrom(from, _name, _aliasName, msg.value);
     }
 
-    function forceCreateContent(address _owner, string memory _name, string memory _aliasName, uint256 price) public onlyMaintainer {
-        return _createContent(_owner, _name, _aliasName, price);
-    }
+    function _sendDonationFrom(address _from, string memory _name, string memory _aliasName, uint256 _paymentAmount) internal {
+        require(vanityURLAddress.checkURLValidity(_name, _aliasName), "invalid URL");
 
-    function _createContent(address _owner, string memory _name, string memory _aliasName, uint256 price) internal {
-        bytes32 tokenId = keccak256(bytes(_name));
-        
-        require(contentRecords[tokenId][_aliasName].owner == address(0x0), "Content alreeady created");        
-        
-        ContentRecord storage content = contentRecords[tokenId][_aliasName];
+        address owner = vanityURLAddress.getNameOwner(_name);
+        uint256 priceForOwner = _paymentAmount * 90 / 100;
+        (bool success, ) = owner.call{value: priceForOwner}("");
+        require(success, "error sending ether");
 
-        content.owner = _owner;
-        content.price = price;
-
-        emit ContentCreated(_owner, _name, _aliasName, price);
-    }
-
-    function sendDonation(string memory _name, string memory _aliasName) public payable {
-        return _sendDonationFrom(msg.sender, _name, _aliasName);
-    }
-
-    function forceSendDonation(address from, string memory _name, string memory _aliasName) public payable onlyMaintainer {
-        return _sendDonationFrom(from, _name, _aliasName);
-    }
-
-    function _sendDonationFrom(address from, string memory _name, string memory _aliasName) internal {
-        bytes32 tokenId = keccak256(bytes(_name));
-        
-        require(contentRecords[tokenId][_aliasName].owner != address(0x0), "Content not created");        
-
-        address recipient = contentRecords[tokenId][_aliasName].owner;
-
-        payable(recipient).transfer(msg.value);
-
-        emit DonationSent(_name, _aliasName, from, recipient, msg.value);
-    }
-
-    function compareStrings(string memory a, string memory b) internal pure returns (bool) {
-        return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
+        emit DonationSent(_from, owner, _name, _aliasName, _paymentAmount, block.timestamp);
     }
 }
