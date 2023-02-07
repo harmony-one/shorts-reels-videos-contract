@@ -27,7 +27,7 @@ contract ShortsReelsVideos is
     uint256 public constant BASIS_POINT = 100_00;
 
     /// @dev Revenue distribution percent for the name owner
-    uint256 public revDisPercentForOwner;
+    uint256 public owneRevDisPercent;
 
     event UserPaidForVanityURL(
         address indexed user,
@@ -49,7 +49,7 @@ contract ShortsReelsVideos is
     
     event VanityURLAddressChanged(address indexed from, address indexed to);
     event MaintainerChanged(address indexed from, address indexed to);
-    event RevDisPercentChanged(uint256 from, uint256 to);
+    event OwnerRevDisPercentChanged(uint256 from, uint256 to);
 
     modifier onlyMaintainer() {
         require(msg.sender == maintainer, "only maintainer");
@@ -80,12 +80,12 @@ contract ShortsReelsVideos is
         maintainer = _maintainer;
     }
 
-    function updateRevDistributionPercent(uint256 _revDisPercentForOwner) external onlyOwner {
-        require(_revDisPercentForOwner <= BASIS_POINT, "exceed 100%");
+    function updateOwnerRevDisPercent(uint256 _owneRevDisPercent) external onlyOwner {
+        require(_owneRevDisPercent <= BASIS_POINT, "exceed 100%");
 
-        emit RevDisPercentChanged(revDisPercentForOwner, _revDisPercentForOwner);
+        emit OwnerRevDisPercentChanged(owneRevDisPercent, _owneRevDisPercent);
 
-        revDisPercentForOwner = _revDisPercentForOwner;
+        owneRevDisPercent = _owneRevDisPercent;
     }
 
     function payForVanityURLAccess(string calldata _name, string calldata _aliasName) external payable {
@@ -114,8 +114,8 @@ contract ShortsReelsVideos is
         vanityURLPaidAt[tokenId][_aliasName][_user] = _paidAt;
 
         address owner = vanityURLAddress.getNameOwner(_name);
-        // pay some percentage to the name owner
-        uint256 priceForOwner = _paymentAmount * revDisPercentForOwner / BASIS_POINT;
+        // distribute the revenue share to the name owner
+        uint256 priceForOwner = _paymentAmount * owneRevDisPercent / BASIS_POINT;
         (bool success, ) = owner.call{value: priceForOwner}("");
         require(success, "error sending ether");
 
