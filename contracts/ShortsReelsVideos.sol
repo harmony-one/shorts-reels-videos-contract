@@ -79,7 +79,7 @@ contract ShortsReelsVideos is
 
     function payForVanityURLAccessFor(address _user, string calldata _name, string calldata _aliasName, uint256 _paidAt) external payable onlyMaintainer {
         // check the payment timestamp
-        require(_paidAt <= block.timestamp, "VanityURL: invalid time");
+        require(_paidAt <= block.timestamp, "invalid time");
 
         _payForVanityURLAccess(_user, _name, _aliasName, msg.value, _paidAt);
     }
@@ -99,7 +99,8 @@ contract ShortsReelsVideos is
         vanityURLPaidAt[tokenId][_aliasName][_user] = _paidAt;
 
         address owner = vanityURLAddress.getNameOwner(_name);
-        uint256 priceForOwner = _paymentAmount * 90 / 100;
+        // pay 60% to the name owner
+        uint256 priceForOwner = _paymentAmount * 60 / 100;
         (bool success, ) = owner.call{value: priceForOwner}("");
         require(success, "error sending ether");
 
@@ -127,7 +128,8 @@ contract ShortsReelsVideos is
         require(vanityURLAddress.checkURLValidity(_name, _aliasName), "invalid URL");
 
         address owner = vanityURLAddress.getNameOwner(_name);
-        uint256 priceForOwner = _paymentAmount * 90 / 100;
+        // pay 60% to the name owner
+        uint256 priceForOwner = _paymentAmount * 60 / 100;
         (bool success, ) = owner.call{value: priceForOwner}("");
         require(success, "error sending ether");
 
