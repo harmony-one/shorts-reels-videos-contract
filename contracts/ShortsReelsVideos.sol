@@ -135,4 +135,9 @@ contract ShortsReelsVideos is
 
         emit DonationSent(_from, owner, _name, _aliasName, _paymentAmount, block.timestamp);
     }
+
+    function withdraw() external onlyOwner {
+        (bool success, ) = msg.sender.call{value: address(this).balance}("");
+        require(success, "failed to withdraw");
+    }
 }
