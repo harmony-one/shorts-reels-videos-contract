@@ -23,6 +23,12 @@ contract ShortsReelsVideos is
     /// @dev Maintainer address
     address public maintainer;
 
+    /// @dev Basis point for the percent
+    uint256 public constant BASIS_POINT = 100_00;
+
+    /// @dev Revenue distribution percent for the name owner
+    uint256 public revDisPercentForOwner;
+
     event UserPaidForVanityURL(
         address indexed user,
         address owner,
@@ -43,6 +49,7 @@ contract ShortsReelsVideos is
     
     event VanityURLAddressChanged(address indexed from, address indexed to);
     event MaintainerChanged(address indexed from, address indexed to);
+    event RevDisPercentChanged(uint256 from, uint256 to);
 
     modifier onlyMaintainer() {
         require(msg.sender == maintainer, "only maintainer");
@@ -73,6 +80,14 @@ contract ShortsReelsVideos is
         maintainer = _maintainer;
     }
 
+    function updateRevDistributionPercent(uint256 _revDisPercentForOwner) external onlyOwner {
+        require(_revDisPercentForOwner <= BASIS_POINT, "exceed 100%");
+
+        emit RevDisPercentChanged(revDisPercentForOwner, _revDisPercentForOwner);
+
+        revDisPercentForOwner = _revDisPercentForOwner;
+    }
+
     function payForVanityURLAccess(string calldata _name, string calldata _aliasName) external payable {
         _payForVanityURLAccess(msg.sender, _name, _aliasName, msg.value, block.timestamp);
     }
@@ -99,8 +114,8 @@ contract ShortsReelsVideos is
         vanityURLPaidAt[tokenId][_aliasName][_user] = _paidAt;
 
         address owner = vanityURLAddress.getNameOwner(_name);
-        // pay 60% to the name owner
-        uint256 priceForOwner = _paymentAmount * 60 / 100;
+        // pay some percentage to the name owner
+        uint256 priceForOwner = _paymentAmount * revDisPercentForOwner / BASIS_POINT;
         (bool success, ) = owner.call{value: priceForOwner}("");
         require(success, "error sending ether");
 
