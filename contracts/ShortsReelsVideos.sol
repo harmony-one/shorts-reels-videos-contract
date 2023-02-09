@@ -81,7 +81,7 @@ contract ShortsReelsVideos is
     }
 
     function updateOwnerRevDisPercent(uint256 _owneRevDisPercent) external onlyOwner {
-        require(_owneRevDisPercent <= BASIS_POINT, "exceed 100%");
+        require(_owneRevDisPercent <= BASIS_POINT, "exceeded 100%");
 
         emit OwnerRevDisPercentChanged(owneRevDisPercent, _owneRevDisPercent);
 
@@ -135,20 +135,20 @@ contract ShortsReelsVideos is
         return _sendDonationFrom(msg.sender, _name, _aliasName, msg.value);
     }
 
-    function forceSendDonation(address from, string memory _name, string memory _aliasName) external payable onlyMaintainer {
-        return _sendDonationFrom(from, _name, _aliasName, msg.value);
+    function sendDonationFor(address _user, string memory _name, string memory _aliasName) external payable onlyMaintainer {
+        return _sendDonationFrom(_user, _name, _aliasName, msg.value);
     }
 
-    function _sendDonationFrom(address _from, string memory _name, string memory _aliasName, uint256 _paymentAmount) internal {
+    function _sendDonationFrom(address _user, string memory _name, string memory _aliasName, uint256 _paymentAmount) internal {
         require(vanityURLAddress.checkURLValidity(_name, _aliasName), "invalid URL");
 
         address owner = vanityURLAddress.getNameOwner(_name);
-        // pay 60% to the name owner
-        uint256 priceForOwner = _paymentAmount * 60 / 100;
+        // transfer 100% to the name owner
+        uint256 priceForOwner = _paymentAmount;
         (bool success, ) = owner.call{value: priceForOwner}("");
         require(success, "error sending ether");
 
-        emit DonationSent(_from, owner, _name, _aliasName, _paymentAmount, block.timestamp);
+        emit DonationSent(_user, owner, _name, _aliasName, _paymentAmount, block.timestamp);
     }
 
     function withdraw() external onlyOwner {
