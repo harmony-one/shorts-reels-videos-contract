@@ -10,14 +10,21 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await getNamedAccounts()
 
   const maintainer = config.maintainer
+  const ownerRevDisPercent = config.ownerRevDisPercent
 
   // get ShortsReelsVideos contract
   const shortsReelsVideosContract: Contract = await ethers.getContract('ShortsReelsVideos')
 
   // update the maintianer address
   await shortsReelsVideosContract.updateMaintainer(maintainer)
+  
+  // set the ownerRevDis perent for the name owner
+  await shortsReelsVideosContract.updateOwnerRevDisPercent(ownerRevDisPercent)
 
-  console.log('Maintainer set done')
+  console.log('maintainer = ', await shortsReelsVideosContract.maintainer())
+  console.log('ownerRevDisPercent = ', await shortsReelsVideosContract.ownerRevDisPercent())
+
+  console.log('ShortsReelsVideos setting done')
 }
 export default func
 func.tags = ['Settings']
