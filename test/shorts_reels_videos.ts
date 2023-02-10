@@ -58,12 +58,12 @@ describe('ShortsReelsVideos', () => {
 
   describe("updateOwnerRevDisPercent", () => {
     it("Should be able set the owner revDis percent", async () => {
-      expect(await shortsReelsVideos.owneRevDisPercent()).to.equal(ownerRevDisPercent);
+      expect(await shortsReelsVideos.ownerRevDisPercent()).to.equal(ownerRevDisPercent);
       
       const newOwnerRevDisPercent = 5000; // 50%
       await shortsReelsVideos.updateOwnerRevDisPercent(newOwnerRevDisPercent);
 
-      expect(await shortsReelsVideos.owneRevDisPercent()).to.equal(newOwnerRevDisPercent);
+      expect(await shortsReelsVideos.ownerRevDisPercent()).to.equal(newOwnerRevDisPercent);
     });
 
     it("Should revert if the caller is not owner", async () => {
