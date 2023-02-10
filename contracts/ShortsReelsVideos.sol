@@ -27,7 +27,7 @@ contract ShortsReelsVideos is
     uint256 public constant BASIS_POINT = 100_00;
 
     /// @dev Revenue distribution percent for the name owner
-    uint256 public owneRevDisPercent;
+    uint256 public ownerRevDisPercent;
 
     event UserPaidForVanityURL(
         address indexed user,
@@ -80,12 +80,12 @@ contract ShortsReelsVideos is
         maintainer = _maintainer;
     }
 
-    function updateOwnerRevDisPercent(uint256 _owneRevDisPercent) external onlyOwner {
-        require(_owneRevDisPercent <= BASIS_POINT, "exceeded 100%");
+    function updateOwnerRevDisPercent(uint256 _ownerRevDisPercent) external onlyOwner {
+        require(_ownerRevDisPercent <= BASIS_POINT, "exceeded 100%");
 
-        emit OwnerRevDisPercentChanged(owneRevDisPercent, _owneRevDisPercent);
+        emit OwnerRevDisPercentChanged(ownerRevDisPercent, _ownerRevDisPercent);
 
-        owneRevDisPercent = _owneRevDisPercent;
+        ownerRevDisPercent = _ownerRevDisPercent;
     }
 
     function payForVanityURLAccess(string calldata _name, string calldata _aliasName) external payable {
@@ -115,7 +115,7 @@ contract ShortsReelsVideos is
 
         address owner = vanityURLAddress.getNameOwner(_name);
         // distribute the revenue share to the name owner
-        uint256 priceForOwner = _paymentAmount * owneRevDisPercent / BASIS_POINT;
+        uint256 priceForOwner = _paymentAmount * ownerRevDisPercent / BASIS_POINT;
         (bool success, ) = owner.call{value: priceForOwner}("");
         require(success, "error sending ether");
 

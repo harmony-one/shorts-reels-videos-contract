@@ -2315,9 +2315,9 @@
         }
       }
     },
-    "963ff5062b29a5875236ab84064769e54a4074bfce8e561f8cdb657922094bb5": {
+    "f77e9a76cf07a2d41e49b12ed49e489804ef6d879e6c5f039ecb214d7d03c1a4": {
       "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-      "txHash": "0x222053dd984d67dd76dcc8452633c4f4bc51a408f90933154789a554c4f8ad45",
+      "txHash": "0x3d8f208fbc298c09f269e6dc6f265f8bcf66b8488df2705515faf3ca339a15c9",
       "layout": {
         "solcVersion": "0.8.17",
         "storage": [
@@ -2419,7 +2419,7 @@
             "src": "contracts/ShortsReelsVideos.sol:24"
           },
           {
-            "label": "owneRevDisPercent",
+            "label": "ownerRevDisPercent",
             "offset": 0,
             "slot": "204",
             "type": "t_uint256",
